@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+
 folder_path = '../datasets/UJIndoorLoc/'
 UJI_training_file = folder_path + 'trainingData.csv'
 UJI_validation_file = folder_path + 'validationData.csv'

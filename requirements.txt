@@ -1,3 +1,7 @@
 pandas
 dotenv
 ucimlrepo
+matplotlib
+seaborn
+plotly
+nbformat>=4.2.0

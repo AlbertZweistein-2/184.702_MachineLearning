@@ -85,7 +85,7 @@ mi_feature_variables.set_index('name', inplace=True)
 
 print(f"There are {mi_feature_variables['missing_values'].value_counts()['yes']} feature variables with missing values and {mi_feature_variables['missing_values'].value_counts()['no']} without missing values.")
 
-plt.figure(figsize=(10, 4))
+plt.figure(figsize=(10, 2))
 ax = sns.countplot(data=mi_feature_variables, y='type', order=mi_feature_variables['type'].value_counts().index)
 ax.set_xlabel('Count')
 ax.set_ylabel('Feature Type')

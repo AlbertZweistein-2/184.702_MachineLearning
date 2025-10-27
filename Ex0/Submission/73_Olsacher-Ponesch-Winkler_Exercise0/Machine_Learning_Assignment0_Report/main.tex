@@ -1,0 +1,85 @@
+ \documentclass[11pt]{article}
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}      % sub‑figures
+\usepackage{float}
+\usepackage{parskip}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{siunitx}         % SI units
+\sisetup{detect-all}
+
+\title{Exercise 0 - Dataset description\\[1ex]
+\large VU Machine Learning - Group~73}
+\author{Olsacher~(01520348)\and Ponesch~(11818774) \and Winkler~(12013078)}
+
+\begin{document}
+\maketitle
+
+\section*{Dataset 1: UJIIndoorLoc \cite{ujiindoorloc_310}}
+\subsection*{Dataset Description}
+The \textbf{UJIIndoorLoc} dataset is an indoor localization dataset based on WiFi fingerprinting, collected in 2013 at Universitat Jaume I, Spain. It covers four floors across three buildings and was designed as a reference benchmark for comparing different indoor localization methods based on WiFi signals. The dataset consists of a \textbf{training set} with 19{,}937 samples and a \textbf{validation/test set} with 1{,}111 samples. Each entry contains 520 features, \textbf{WAP001}–\textbf{WAP520}, representing the measured RSSI (Received Signal Strength Indicator) values ranging from \(-104\,\mathrm{dBm}\) to \(0\,\mathrm{dBm}\), or 100 if the device was not in range of this specific access point. These features are \textbf{numeric (interval-scaled)}.
+
+As target variables, the dataset provides \textbf{Longitude} (numeric, interval), \textbf{Latitude} (numeric, interval), \textbf{Floor} (ordinal), \textbf{Building ID} (nominal), \textbf{Space ID} (nominal), and \textbf{Relative Position} (nominal). Additional metadata include the \textbf{User ID} (nominal), \textbf{Phone ID} (nominal), and \textbf{Timestamp} (ordinal/temporal).
+
+Two main prediction tasks can be formulated: a regression task (predicting longitude, latitude, and height) or a \textbf{classification} task (predicting the combination of Building ID, Floor, and Space ID). Space IDs are not globally unique, but the triplet combination of \textbf{(Building ID, Floor, Space ID)} is unique. In total, the dataset contains 735 unique combinations and 123 distinct Space IDs. The dataset has no missing values.
+\begin{figure}[H] % Capital H enforces position
+  \centering
+  \includegraphics[width=1\textwidth]{sample_distribution_per_floor_building.png}
+  \caption{Distribution of the data samples over the buildings and the floors.}
+  \label{fig:timeline}
+\end{figure}
+
+\begin{figure}[H] % Capital H enforces position
+  \centering
+  \includegraphics[width=1\textwidth]{building_floor_space_distribution.png}
+  \caption{Front View and Top View of the unique spaces in the dataset.}
+  \label{fig:timeline}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{Dataset 2: Myocardial infarction complications \cite{myocardial_infarction_complications_579}}
+\subsection*{Dataset description}
+\label{sec:mi-dataset}
+
+
+The \textbf{Myocardial Infarction (MI) Complications Dataset} is designed to predict potential complications following a myocardial infarction based on patient information collected (i) at the time of hospital admission and (ii) on the third day of hospitalization. The dataset comprises a total of 111 feature variables of various data types, as illustrated in \autoref{fig:feat_typ}. These features include key patient characteristics such as age, sex, and relevant pre-existing conditions. Among the feature variables, 109 contain missing values, while 2 are complete. In total, the dataset consists of 1,700 patient instances.
+
+In addition to the feature variables, the dataset provides 12 target variables. Eleven of these targets are binary, whereas one is categorical with eight distinct classes. \autoref{fig:tar_typ} presents the binary target variables, while \autoref{fig:leat_out} shows the distribution of the categorical variable.
+
+Furthermore, the dataset supports complication prediction at four different time points: at admission, after 24 hours, after 48 hours, and after 72 hours. Depending on the prediction time, specific subsets of the input features are available for model training.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{mi_feature_variable_types.png}
+    \caption{Feature Variable Type}
+    \label{fig:feat_typ}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{mi_binary_target_variables.png}
+    \caption{Target Variable Type}
+    \label{fig:tar_typ}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{mi_lethal_outcome_cause.png}
+    \caption{Leathal outcome cause}
+    \label{fig:leat_out}
+\end{figure}
+
+\bibliographystyle{unsrt}
+\bibliography{References}
+
+\end{document}

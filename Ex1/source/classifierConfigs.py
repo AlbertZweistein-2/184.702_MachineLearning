@@ -38,7 +38,7 @@ def _xgb_estimator_for_task(task: str) -> XGBClassifier:
         eval_metric='mlogloss',
         n_jobs=-1,
         random_state=42,
-        device='cuda'
+        device='cpu'
     )
 
 
@@ -88,9 +88,9 @@ def get_classifier_configs(task: str = 'multiclass', classifier_name: Optional[s
         'XGBoost': {
             'model': _xgb_estimator_for_task(task),
             'param_grid': {
-                'n_estimators': [100, 500, 1000, 1500],
-                'learning_rate': [0.05, 0.1, 0.2],
-                'max_depth': [5, 10, 15, 20],
+                'n_estimators': [100, 500],
+                'learning_rate': [0.05, 0.1],
+                'max_depth': [15, 20],
             },
         },
     }

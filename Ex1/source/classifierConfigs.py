@@ -38,7 +38,6 @@ def _xgb_estimator_for_task(task: str) -> XGBClassifier:
         eval_metric='mlogloss',
         n_jobs=-1,
         random_state=42,
-        device='cpu'
     )
 
 
@@ -47,50 +46,34 @@ def get_classifier_configs(task: str = 'multiclass', classifier_name: Optional[s
     task = task.lower()
 
     configs: Dict[str, Dict[str, Any]] = {
-        # 'KNN': {
-        #     'model': KNeighborsClassifier(),
-        #     'param_grid': {
-        #         'n_neighbors': [2 ,3, 6, 15],
-        #         'weights': ['uniform', 'distance'],
-        #         # 'p': [1, 2],
-        #     },
-        # },
-        # 'Random Forest': {
-        #     'model': RandomForestClassifier(
-        #         max_features=None,
-        #         bootstrap=True,
-        #         criterion='entropy',
-        #         oob_score=True,
-        #         n_jobs=-1,
-        #         n_estimators=1000,
-        #         # random_state=42,
-        #     ),
-        #     'param_grid': {
-        #         'criterion': ['entropy', 'gini', 'log_loss'],
-        #         'max_features': [None, 'sqrt', 'log2'],
-        #     },
-        # },
-        #  'Random Forest_adapt': {
-        #     'model': RandomForestClassifier(
-        #         max_features=None,
-        #         bootstrap=True,
-        #         criterion='entropy',
-        #         oob_score=True,
-        #         n_jobs=-1,
-        #         n_estimators=200,
-        #         # random_state=42,
-        #     ),
-        #     'param_grid': {
-        #         'criterion': ['entropy', 'gini', 'log_loss'],
-        #         'max_features': [None, 'sqrt', 'log2'],
-        #     },
-        #},
+        'KNN': {
+            'model': KNeighborsClassifier(),
+            'param_grid': {
+                'n_neighbors': [2 ,3, 6, 15],
+                'weights': ['uniform', 'distance'],
+                'p': [1, 2],
+            },
+        },
+        'Random Forest_adapt': {
+            'model': RandomForestClassifier(
+                max_features='log2',
+                bootstrap=True,
+                criterion='entropy',
+                oob_score=True,
+                n_jobs=-1,
+                random_state=42,
+            ),
+            'param_grid': {
+                'n_estimators': [100, 500, 1000, 1500],
+                'max_depth': [None, 10, 100],
+            },
+        },
         'XGBoost': {
             'model': _xgb_estimator_for_task(task),
             'param_grid': {
-                'n_estimators': [100, 500],
-                'learning_rate': [0.05, 0.1],
-                'max_depth': [15, 20],
+                'n_estimators': [100, 500, 1000, 1500],
+                'learning_rate': [0.05, 0.1, 0.2],
+                'max_depth': [5, 10, 15, 20],
             },
         },
     }

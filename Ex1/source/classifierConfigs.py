@@ -124,7 +124,11 @@ def get_all_classifiers(task: str = 'multiclass'):
     return get_knn_classifiers(task) + get_rf_classifiers(task) + get_xgb_classifiers(task)
 
 
-def get_scorings(multiclass: bool = False):
+def get_scorings(task: str = 'multiclass'):
+    if task.strip().lower() == 'multiclass':
+        multiclass = True
+    else:
+        multiclass = False
     return scoring_multiclass if multiclass else scoring_binary
 
 

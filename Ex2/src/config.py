@@ -24,9 +24,10 @@ SCORING_METRICS = {
 
 # --- Baseline Models (sklearn) ---
 BASELINE_MODELS = {
+    "random_forest": RandomForestRegressor(random_state=RANDOM_SEED, n_jobs=-1),
     "linear": LinearRegression(),
     "decision_tree": DecisionTreeRegressor(random_state=RANDOM_SEED),
-    "random_forest": RandomForestRegressor(random_state=RANDOM_SEED),
+    
 }
 
 # --- Hyperparameter Search Spaces ---
@@ -54,10 +55,10 @@ RAND_DECISION_TREE = {
 }
 
 RAND_RANDOM_FOREST = {
-    "model__n_estimators": randint(200, 1600),
+    "model__n_estimators": randint(200, 800),
     "model__max_depth": [None] + list(range(3, 60)),
-    "model__min_samples_split": randint(2, 25),
-    "model__min_samples_leaf": randint(1, 10),
+    "model__min_samples_split": randint(2, 20),
+    "model__min_samples_leaf": randint(1, 30),
     "model__max_features": ["sqrt", "log2", None],
     "model__bootstrap": [True],
     "model__criterion": ["squared_error"],

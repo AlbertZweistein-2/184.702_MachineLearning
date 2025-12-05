@@ -26,7 +26,7 @@ SCORING_METRICS = {
 BASELINE_MODELS = {
     "linear": LinearRegression(),
     "decision_tree": DecisionTreeRegressor(random_state=RANDOM_SEED),
-    "random_forest": RandomForestRegressor(random_state=RANDOM_SEED, n_jobs=12),
+    "random_forest": RandomForestRegressor(random_state=RANDOM_SEED),
 }
 
 # --- Hyperparameter Search Spaces ---
@@ -63,15 +63,23 @@ RAND_RANDOM_FOREST = {
     "model__criterion": ["squared_error"],
 }
 
+RAND_LINEAR = {
+    "model__fit_intercept": [True, False],
+    "model__positive": [True, False],
+}
+
 PARAM_GRIDS = {
     "decision_tree": GRID_DECISION_TREE,
     "random_forest": GRID_RANDOM_FOREST,
 }
 
+
 PARAM_DISTS = {
     "decision_tree": RAND_DECISION_TREE,
     "random_forest": RAND_RANDOM_FOREST,
+    "linear": RAND_LINEAR,
 }
+
 __all__ = [
     "RANDOM_SEED",
     "TEST_SIZE",

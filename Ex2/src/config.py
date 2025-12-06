@@ -24,9 +24,10 @@ SCORING_METRICS = {
 
 # --- Baseline Models (sklearn) ---
 BASELINE_MODELS = {
-    "random_forest": RandomForestRegressor(random_state=RANDOM_SEED, n_jobs=-1),
+    
     "linear": LinearRegression(),
     "decision_tree": DecisionTreeRegressor(random_state=RANDOM_SEED),
+    "random_forest": RandomForestRegressor(random_state=RANDOM_SEED, n_jobs=-1),
     
 }
 

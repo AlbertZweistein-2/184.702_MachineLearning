@@ -1,24 +1,7 @@
-
-
-# Imlemente Feature List to skip
-# Implement max Features to consider at each split (randomly select features)
-# Feature selection for random forest
-# 
-
-
-
 import numpy as np
 from joblib import Parallel, delayed
 import pandas as pd
 
-
-
-# def rss(df, target):
-#     if len(df) == 0:
-#         return 0    
-#     mean_value = df[target].mean()
-#     residuals = df[target] - mean_value
-#     return (residuals ** 2).sum() / len(df)
 
 def calculate_rss(y):
     if len(y) == 0:
@@ -26,9 +9,6 @@ def calculate_rss(y):
     mean_value = np.mean(y)
     residuals = y - mean_value
     return np.sum(residuals ** 2)
-
-
-
 
 class TreeNode:
     def __init__(self, feature=None, threshold=None, left=None, right=None, value=None, depth=None):
@@ -56,130 +36,18 @@ class TreeNode:
                 ret += self.right.__str__(level + 1)
         return ret
     
-    def __repr__(self):
-        return(f"""
-TODO
-               """)
+#     def __repr__(self):
+#         return(f"""
+# TODO
+#                """)
 
-
-
-
-
-
-
-
-
-
-# class Splitter:
-#     def __init__(self, df, target, n_jobs):
-#         self.df = df
-        
-#         self.best_feature = None
-#         self.best_threshold = None
-#         self.left = None
-#         self.right = None
-#         self.minimal_rss = float('inf')
-#         self.n_jobs = n_jobs
-#         self.target = target
-    
-#     def get_split(self):
-#         self._calculate_best_split()
-        
-#         if self.best_feature == None:
-#             # No valid split found
-#             return None
-        
-#         return self.best_feature, self.best_threshold, self.left, self.right
-    
-    
-#     def _skip_column(self, col):
-#         if col == self.target:
-#             return True
-        
-#         # make it more efficient but think it's not necessary for our datasets
-        
-#         # if self.df[col].nunique() <= 1:
-#           #  return True
-        
-#     def _calculate_best_split(self):
-        
-        
-#         def process_feature(feature):
-#             if self._skip_column(feature):
-#                 return None
-            
-#             threshold, rr = self._calculate_best_split_for_feature(self.df, feature)
-#             return (rr, threshold, feature)
-
-#         # 2. Parallelisierung starten
-#         results = Parallel(n_jobs=self.n_jobs)(
-#             delayed(process_feature)(feature) for feature in self.df.columns
-#         )
-        
-#         # 3. Ergebnisse filtern (None entfernen, falls skip_column zutraf i.e. Target Variable)
-#         valid_results = [res for res in results if res is not None]
-        
-#         if not valid_results:
-#             print("No valid split found.")
-#             return
-
-        
-#         best_result = min(valid_results, key=lambda x: x[0])
-        
-#         found_rr, found_threshold, found_feature = best_result
-
-#         # 5. State updaten, wenn besser als bisheriges Minimum
-#         if found_rr < self.minimal_rss:
-#             self.minimal_rss = found_rr
-#             self.best_feature = found_feature
-#             self.best_threshold = found_threshold
-            
-            
-#             self.left, self.right = self._split_by_threshold(
-#                 self.df, self.best_feature, self.best_threshold
-#             )
-             
-
-#     def _split_by_index(self, df, index):
-#         return df.iloc[:index], df.iloc[index:]
-
-#     def _calculate_best_split_for_feature(self, df, feature, criteria='RSS'):
-        
-#         if criteria == 'RSS':
-#             min_rr = float('inf')
-#             min_threshold = None
-        
-#             for i in range(1, len(df[feature])):
-#                 threshold = (df[feature].iloc[i-1] + df[feature].iloc[i]) / 2
-            
-#                 left, right = self._split_by_threshold(df, feature, threshold)
-            
-#                 rr = rss(left, self.target) + rss(right, self.target)
-            
-#                 if rr < min_rr:
-#                     min_rr = rr
-#                     min_threshold = threshold
-#         else:
-#             # TODO other criteria
-#             raise ValueError(f"Criteria '{criteria}' not implemented.")
-        
-#         return min_threshold, min_rr
-    
-        
-#     def _split_by_threshold(self, df, feature, threshold):
-#         left = df[df[feature] <= threshold].copy()
-#         right = df[df[feature] > threshold].copy()
-        
-#         left.reset_index(drop=True, inplace=True)
-#         right.reset_index(drop=True, inplace=True)
-#         return left, right
-    
     
 class Splitter:
-    def __init__(self, df, target, n_jobs):
+    def __init__(self, df, target, n_jobs, verbose=1):
         self.df = df
         self.target = target
         self.n_jobs = n_jobs
+        self.verbose = verbose
         
         self.best_feature = None
         self.best_threshold = None
@@ -219,7 +87,7 @@ class Splitter:
         # Parallelisierung
         # Hinweis: Bei sehr kleinen Knoten ist der Overhead von Parallelisierung oft 
         # höher als der Nutzen. Man könnte hier prüfen: if len(self.df) < 1000: n_jobs=1
-        results = Parallel(n_jobs=self.n_jobs)(
+        results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
             delayed(process_feature)(col) for col in self.df.columns
         )
         
@@ -242,79 +110,84 @@ class Splitter:
             self.best_right_indices = right_idx
 
     def _calculate_best_split_for_feature(self, df, feature):
-        # 1. Daten holen
         X_col = df[feature].values
         y_col = df[self.target].values
-        
-        # 2. Einzigartige Werte sortieren (WICHTIG!)
-        unique_values = np.unique(X_col)
-        
-        if len(unique_values) < 2:
+
+        # sort by feature
+        order = np.argsort(X_col)
+        x_sorted = X_col[order]
+        y_sorted = y_col[order]
+
+        # candidate split positions: between sorted samples
+        N = len(y_sorted)
+        if N < 2:
             return None
-        
-        # Thresholds sind die Mitten zwischen den sortierten Werten
-        # (Viel weniger Iterationen als über jede Zeile)
-        thresholds = (unique_values[:-1] + unique_values[1:]) / 2
-        
-        min_rr = float('inf')
-        best_thresh = None
-        best_left_idx = None
-        best_right_idx = None
-        
-        # 3. Iterieren
-        # (Man könnte das hier auch noch vektorisieren, aber Loop ist verständlicher)
-        for threshold in thresholds:
-            # Maske erstellen (Boolean Array)
-            left_mask = X_col <= threshold
-            right_mask = ~left_mask
-            
-            y_left = y_col[left_mask]
-            y_right = y_col[right_mask]
-            
-            # Wenn ein Split leer ist, überspringen
-            if len(y_left) == 0 or len(y_right) == 0:
-                continue
-                
-            current_rr = calculate_rss(y_left) + calculate_rss(y_right)
-            
-            if current_rr < min_rr:
-                min_rr = current_rr
-                best_thresh = threshold
-                # Wir merken uns die Indizes (oder die Maske), um später das DF zu teilen
-                best_left_idx = df.index[left_mask]
-                best_right_idx = df.index[right_mask]
-                
-        # Rückgabe an den Parallel-Worker
+
+        # skip positions where feature value doesn’t change
+        valid_split = x_sorted[:-1] != x_sorted[1:]
+
+        # prefix sums for efficient RSS computation
+        cum_y = y_sorted.cumsum()
+        cum_y2 = (y_sorted ** 2).cumsum()
+
+        n_left = np.arange(1, N)
+        n_right = N - n_left
+
+        sum_left = cum_y[:-1]
+        sum_right = cum_y[-1] - cum_y[:-1]
+
+        rss_left = cum_y2[:-1] - (sum_left ** 2) / n_left
+        rss_right = (cum_y2[-1] - cum_y2[:-1]) - (sum_right ** 2) / n_right
+
+        total_rss = rss_left + rss_right
+        total_rss[~valid_split] = np.inf  # forbid splits where feature value is same
+
+        best_pos = np.argmin(total_rss)
+        min_rr = total_rss[best_pos]
+
+        best_thresh = (x_sorted[best_pos] + x_sorted[best_pos + 1]) / 2
+        best_left_idx = df.index[order[:best_pos + 1]]
+        best_right_idx = df.index[order[best_pos + 1:]]
+
         return (min_rr, best_thresh, feature, best_left_idx, best_right_idx)    
 
 
 
 class RegressionTree:
-    def __init__(self, 
-                 X,
-                 y,
+    def __init__(self,
                  max_depth=None, # The maximum depth of the tree
                  min_samples_split=2, # The minimum number of samples required to split an internal node
                  min_samples_leaf=1, # The minimum number of samples required to be at a leaf node
-                 n_jobs=1 # Number of parallel jobs to run
+                 n_jobs=1, # Number of parallel jobs to run
+                 verbose=1,
+                 #do we need more parameters to use sklearn cross validation?
                  ):
-        
-        self.X = X
-        self.y = y
-        self.df = pd.concat([X, y], axis=1)
-        self.target = y.name
+
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
         self.n_jobs = n_jobs
+        self.verbose = verbose
         
+        self.df = None
+        self.target = None
         self.root = None
             
     
-    def fit(self):
+    def fit(self, X, y):
         """
         Creates the regression tree for the dataset.
         """
+        # Error check the X and y
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("Number of samples in X and y do not match.")
+        if y.ndim != 1:
+            raise ValueError("y must be a one-dimensional array or Series.")
+        if X.shape[0] < self.min_samples_split:
+            raise ValueError("Number of samples is less than min_samples_split.")
+        
+        self.df = pd.concat([X, y], axis=1)
+        self.target = y.name
         root = TreeNode()
         self.root = self._insert_node(root, self.df)
     
@@ -323,6 +196,11 @@ class RegressionTree:
         """
         Predicts target values for the provided dataframe.
         """
+        if self.root is None:
+            raise ValueError("The tree has not been trained yet.")
+        if not isinstance(df, pd.DataFrame):
+            raise ValueError("Input must be a pandas DataFrame.")
+        
         return df.apply(self._predict_row, axis=1)
 
 
@@ -335,7 +213,7 @@ class RegressionTree:
             return self._leaf_node(df, node, depth)
         
         # calculate possible split
-        splitter = Splitter(df=df.copy(), target=self.target, n_jobs=self.n_jobs)
+        splitter = Splitter(df=df.copy(), target=self.target, n_jobs=self.n_jobs, verbose=self.verbose)
         split = splitter.get_split()
         
         if split is None:
@@ -390,6 +268,11 @@ class RegressionTree:
         """
         Predicts target value for the given row
         """
+        if self.root is None:
+            raise ValueError("The tree has not been trained yet.")
+        if not isinstance(row, pd.Series):
+            raise ValueError("Input row must be a pandas Series.")
+        
         node = self.root
         while not node.is_leaf():
             feature_value = row[node.feature]

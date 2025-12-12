@@ -35,11 +35,7 @@ class TreeNode:
             if self.right:
                 ret += self.right.__str__(level + 1)
         return ret
-    
-#     def __repr__(self):
-#         return(f"""
-# TODO
-#                """)
+
 
     
 class Splitter:
@@ -87,9 +83,12 @@ class Splitter:
         # Parallelisierung
         # Hinweis: Bei sehr kleinen Knoten ist der Overhead von Parallelisierung oft 
         # höher als der Nutzen. Man könnte hier prüfen: if len(self.df) < 1000: n_jobs=1
-        results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-            delayed(process_feature)(col) for col in self.df.columns
-        )
+        if len(self.df) < 1000 or self.n_jobs == 1:
+            results = [process_feature(col) for col in self.df.columns]
+        else:
+            results = Parallel(n_jobs=self.n_jobs, backend='threading', verbose=self.verbose)(
+                delayed(process_feature)(col) for col in self.df.columns
+            )
         
         valid_results = [res for res in results if res is not None]
         
@@ -190,7 +189,9 @@ class RegressionTree:
         self.target = y.name
         root = TreeNode()
         self.root = self._insert_node(root, self.df)
-    
+        #Free memory
+        self.df = None
+        self.target = None
     
     def predict(self, df):
         """
@@ -213,7 +214,7 @@ class RegressionTree:
             return self._leaf_node(df, node, depth)
         
         # calculate possible split
-        splitter = Splitter(df=df.copy(), target=self.target, n_jobs=self.n_jobs, verbose=self.verbose)
+        splitter = Splitter(df=df, target=self.target, n_jobs=self.n_jobs, verbose=self.verbose)
         split = splitter.get_split()
         
         if split is None:

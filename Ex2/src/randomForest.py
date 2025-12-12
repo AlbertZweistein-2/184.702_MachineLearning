@@ -68,6 +68,10 @@ class RandomForest:
         self.trained_trees = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
             delayed(self._train_tree)(i) for i in range(self.n_estimators)
         )
+        # if you don't need raw data anymore:
+        self.X = None
+        self.y = None
+        self.df = None
         
     
     def predict(self, X):
@@ -101,7 +105,7 @@ class RandomForest:
             max_depth=self.max_depth,
             min_samples_split=self.min_samples_split,
             min_samples_leaf=self.min_samples_leaf,
-            n_jobs=math.ceil(self.n_jobs / self.n_estimators),
+            n_jobs=max(math.ceil(self.n_jobs / self.n_estimators), 2),  # at least 2 jobs per tree if possible
             verbose=0
         )
         X = tree_result.bootstrapped_df.drop(columns=self.target).reset_index(drop=True)
@@ -110,8 +114,6 @@ class RandomForest:
         tree_result.trained_tree.fit(X=X, y=y)
         tree_result.bootstrapped_df = None  # free memory
         tree_result.out_of_bag_df = None  # free memory
-        tree_result.trained_tree.df = None  # free memory
-        tree_result.trained_tree.target = None  # free memory
         return tree_result
 
     

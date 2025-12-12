@@ -173,7 +173,7 @@ def custom_cross_validate(model, X, y, k=5):
 
 
 
-def customn_evaluate_holdout_performance(models:dict, X_train, y_train, X_test, y_test):
+def custom_evaluate_holdout_performance(models:dict, X_train, y_train, X_test, y_test):
     """
     Evaluates multiple custom models on test data using RMSE and MAE metrics.
     """

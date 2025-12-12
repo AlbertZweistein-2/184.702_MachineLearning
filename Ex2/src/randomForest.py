@@ -80,13 +80,15 @@ class RandomForest:
         """
         tree_predictions = self._generate_tree_predictions(X)
         # [ <Tree 1 preds>, <Tree 2 preds> ]
-        averaged_predictions = pd.DataFrame(tree_predictions).mean(axis=0)
-        averaged_predictions.index = X.index
-        
-        missing_indices = set(X.index) - set(averaged_predictions.index)
-        if missing_indices:
-            raise ValueError(f"Index mismatch: missing predictions for indices {missing_indices}.")
-        
+        # Preserve alignment via index labels.
+        preds_df = pd.concat(tree_predictions, axis=1)
+        averaged_predictions = preds_df.mean(axis=1)
+        averaged_predictions = averaged_predictions.reindex(X.index)
+
+        if averaged_predictions.isna().any():
+            missing_indices = averaged_predictions[averaged_predictions.isna()].index
+            raise ValueError(f"Index mismatch: missing predictions for indices {list(missing_indices)}.")
+
         return averaged_predictions
 
 
@@ -94,20 +96,23 @@ class RandomForest:
         """
         Trains a (X-mas) tree :)
         """
-        selected_features = self._get_selected_features(random_state)
-        
-        # bootstrap
-        tree_result = self._get_bootstrap_samples(self.df[selected_features + [self.target]], random_state)
-        tree_result.selected_features = selected_features
+        # bootstrap (tree sees all features; max_features is applied per split in the tree)
+        tree_result = self._get_bootstrap_samples(self.df, random_state)
+        tree_result.selected_features = None
         
         # create/fit regression tree
         tree_result.trained_tree = RegressionTree(
             max_depth=self.max_depth,
             min_samples_split=self.min_samples_split,
             min_samples_leaf=self.min_samples_leaf,
-            n_jobs=max(math.ceil(self.n_jobs / self.n_estimators), 2),  # at least 2 jobs per tree if possible
+            n_jobs=1,  # at least 2 jobs per tree if possible
             verbose=0
         )
+
+        # Ensure per-split feature subsampling matches this forest.
+        tree_result.trained_tree.max_features = self.max_features
+        tree_result.trained_tree.random_state = random_state
+
         X = tree_result.bootstrapped_df.drop(columns=self.target).reset_index(drop=True)
         y = tree_result.bootstrapped_df[self.target].reset_index(drop=True)
 

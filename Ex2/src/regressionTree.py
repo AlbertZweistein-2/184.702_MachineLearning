@@ -4,10 +4,17 @@ import pandas as pd
 
 
 def calculate_rss(y):
-    if len(y) == 0:
-        return 0
-    mean_value = np.mean(y)
-    residuals = y - mean_value
+    n = len(y)
+    if n < 2:
+        return 0.0
+    
+    #SHIFT to improve numerical stability
+    shift = y[0] 
+    y_shifted = y - shift
+
+
+    mean_val = np.mean(y_shifted)
+    residuals = y_shifted - mean_val
     return np.sum(residuals ** 2)
 
 class TreeNode:

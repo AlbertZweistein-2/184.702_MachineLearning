@@ -47,7 +47,7 @@ def sklearn_evaluate_holdout_performance(model_pipelines:dict, X_train, y_train,
         all_results[model_name] = results
     res_df = pd.DataFrame.from_dict(all_results, orient='index')
     # persist results as csv
-    res_df.to_csv("sklearn_holdout_performance_results.csv")
+    res_df.to_csv("Taiwan/sklearn_holdout_performance_results.csv")
     return res_df
 
 def multiple_sklearn_cross_validate(model_pipelines:dict, X, y, cv_folds=5, scoring = SCORING_METRICS):
@@ -73,7 +73,7 @@ def multiple_sklearn_cross_validate(model_pipelines:dict, X, y, cv_folds=5, scor
         averaged_results[model_name] = {f"avg_{k}": v for k, v in averaged_results[model_name].items()}
     res_df = pd.DataFrame(averaged_results).T
     # persist results as csv
-    res_df.to_csv("sklearn_cross_validation_results.csv")
+    res_df.to_csv("Taiwan/sklearn_cross_validation_results.csv")
     return res_df
 
 
@@ -117,7 +117,7 @@ def multiple_custom_cross_validate(model_pipelines:dict, X, y, k=5):
         averaged_results[model_name] = {f"avg_{k}": v for k, v in averaged_results[model_name].items()}
     res_df = pd.DataFrame(averaged_results).T
     # persist results as csv
-    res_df.to_csv("custom_cross_validation_results.csv")
+    res_df.to_csv("Taiwan/custom_cross_validation_results.csv")
     return res_df
 
 def custom_cross_validate(model, X, y, k=5):
@@ -240,7 +240,7 @@ def custom_evaluate_holdout_performance(models:dict, X_train, y_train, X_test, y
         }
     res_df = pd.DataFrame.from_dict(all_results, orient='index')
     # persist results as csv
-    res_df.to_csv("custom_holdout_performance_results.csv")
+    res_df.to_csv("Taiwan/custom_holdout_performance_results.csv")
     return res_df
     
 

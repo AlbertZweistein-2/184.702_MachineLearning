@@ -90,12 +90,12 @@ def sklearn_cross_validate(model_pipeline, X, y, cv_folds=5, scoring = SCORING_M
         cv=cv_folds,
         scoring=scoring,
         return_train_score=True,
-        n_jobs=-1
+        n_jobs=1
     )
     #return pandas row dataframe
     return pd.DataFrame(cv_results)
 
-def multiple_custom_cross_validate(model_pipelines:dict, X, y, target_col, k=5):
+def multiple_custom_cross_validate(model_pipelines:dict, X, y, k=5):
     """
     Wrapper around custom_cross_validate to return results for multiple models.
     """
@@ -103,12 +103,10 @@ def multiple_custom_cross_validate(model_pipelines:dict, X, y, target_col, k=5):
     for model_name, model_pipeline in model_pipelines.items():
         print(f"Starting custom {k}-Fold cross validation for model: {model_name}...")
         df_results = custom_cross_validate(
-            model_pipeline.__class__,
+            model_pipeline,
             X,
             y,
-            target_col=target_col,
-            k=k,
-            model_params=model_pipeline.get_params()
+            k=k
         )
         all_results[model_name] = df_results
     #return dataframe with averaged results

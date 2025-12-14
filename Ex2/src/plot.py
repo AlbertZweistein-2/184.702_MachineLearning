@@ -9,11 +9,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Optional, List, Tuple, Dict
 
-# Consistent color scheme
-SKLEARN_COLOR = '#4682B4'  # steelblue
-CUSTOM_COLOR = '#FF7F50'   # coral
-TRAIN_COLOR = '#90EE90'    # lightgreen
-TEST_COLOR = '#FFB6C1'     # lightpink
+
+SKLEARN_COLOR = '#4682B4'
+CUSTOM_COLOR = '#FF7F50'
+TRAIN_COLOR = '#90EE90'
+TEST_COLOR = '#FFB6C1'
 
 
 def _find_matching_column(df: pd.DataFrame, patterns: List[str]):
@@ -39,8 +39,7 @@ def _prepare_comparison_data(
         raise ValueError(f"Could not find sklearn columns matching patterns: {metric_patterns}")
     
     data = []
-    
-    # Add sklearn-only models first (like linear regression)
+
     if sklearn_only_models:
         for display_name, sk_name in sklearn_only_models.items():
             if sk_name in sklearn_df.index:
@@ -48,12 +47,11 @@ def _prepare_comparison_data(
                 data.append({
                     'model_pair': display_name,
                     'sklearn': sklearn_val,
-                    'custom': np.nan,  # No custom implementation
+                    'custom': np.nan,  
                     'sklearn_name': sk_name,
                     'custom_name': None
                 })
-    
-    # Add paired models
+
     for display_name, (sklearn_name, custom_name) in model_pairs.items():
         if sklearn_name in sklearn_df.index and custom_name in custom_df.index:
             sklearn_val = abs(sklearn_df.loc[sklearn_name, sklearn_col])
@@ -155,7 +153,7 @@ def plot_holdout_comparison(
             width = 0.35
             
             ax.bar(x - width/2, comp_data['sklearn'], width, label='sklearn', color=SKLEARN_COLOR)
-            # Only plot custom where it exists
+
             custom_mask = ~comp_data['custom'].isna()
             ax.bar(x[custom_mask] + width/2, comp_data.loc[custom_mask, 'custom'], width, label='Custom', color=CUSTOM_COLOR)
             
@@ -194,7 +192,6 @@ def plot_overfitting_comparison(
     fit_patterns = ['fit_time', 'avg_fit_time']
     score_patterns = ['score_time', 'avg_score_time']
     
-    # Prepare data
     train_col_sk = _find_matching_column(sklearn_cv_df, train_patterns)
     test_col_sk = _find_matching_column(sklearn_cv_df, test_patterns)
     train_col_cu = _find_matching_column(custom_cv_df, train_patterns)
@@ -203,8 +200,7 @@ def plot_overfitting_comparison(
     fit_col_cu = _find_matching_column(custom_cv_df, fit_patterns)
     score_col_sk = _find_matching_column(sklearn_cv_df, score_patterns)
     score_col_cu = _find_matching_column(custom_cv_df, score_patterns)
-    
-    # Build sklearn data (including sklearn-only models)
+
     sk_models = []
     sk_train = []
     sk_test = []
@@ -221,8 +217,7 @@ def plot_overfitting_comparison(
             sk_models.append(display_name)
             sk_train.append(abs(sklearn_cv_df.loc[sk_name, train_col_sk]))
             sk_test.append(abs(sklearn_cv_df.loc[sk_name, test_col_sk]))
-    
-    # Build custom data
+
     cu_models = []
     cu_train = []
     cu_test = []
@@ -232,8 +227,7 @@ def plot_overfitting_comparison(
             cu_models.append(display_name)
             cu_train.append(abs(custom_cv_df.loc[cu_name, train_col_cu]))
             cu_test.append(abs(custom_cv_df.loc[cu_name, test_col_cu]))
-    
-    # Build speedup data (only for paired models)
+
     speedup_models = []
     fit_sk = []
     fit_cu = []

@@ -72,7 +72,7 @@ def plot_cv_comparison(
     custom_cv_df: pd.DataFrame,
     model_pairs: Dict[str, List[str]],
     sklearn_only_models: Optional[Dict[str, str]] = None,
-    figsize: Tuple[int, int] = (14, 10),
+    figsize: Tuple[int, int] = (14, 8),
     suptitle: Optional[str] = None
 ):
     fig, axes = plt.subplots(2, 2, figsize=figsize)
@@ -114,8 +114,8 @@ def plot_cv_comparison(
         except Exception as e:
             ax.text(0.5, 0.5, f'Error', ha='center', va='center', transform=ax.transAxes)
     
-    if suptitle is None:
-        suptitle = 'Cross-Validation: sklearn vs Custom'
+    # if suptitle is None:
+    #     suptitle = 'Cross-Validation: sklearn vs Custom'
     fig.suptitle(suptitle, fontsize=14, fontweight='bold')
     
     plt.tight_layout()
@@ -127,7 +127,7 @@ def plot_holdout_comparison(
     custom_ho_df: pd.DataFrame,
     model_pairs: Dict[str, List[str]],
     sklearn_only_models: Optional[Dict[str, str]] = None,
-    figsize: Tuple[int, int] = (14, 10),
+    figsize: Tuple[int, int] = (14, 8),
     suptitle: Optional[str] = None
 ):
     fig, axes = plt.subplots(2, 2, figsize=figsize)
@@ -169,8 +169,8 @@ def plot_holdout_comparison(
         except Exception as e:
             ax.text(0.5, 0.5, f'Error', ha='center', va='center', transform=ax.transAxes)
     
-    if suptitle is None:
-        suptitle = 'Holdout Evaluation: sklearn vs Custom (Test Set)'
+    # if suptitle is None:
+    #     suptitle = 'Holdout Evaluation: sklearn vs Custom (Test Set)'
     fig.suptitle(suptitle, fontsize=14, fontweight='bold')
     
     plt.tight_layout()
@@ -182,7 +182,7 @@ def plot_overfitting_comparison(
     custom_cv_df: pd.DataFrame,
     model_pairs: Dict[str, List[str]],
     sklearn_only_models: Optional[Dict[str, str]] = None,
-    figsize: Tuple[int, int] = (14, 10),
+    figsize: Tuple[int, int] = (14, 8),
     suptitle: Optional[str] = None
 ):
     fig, axes = plt.subplots(2, 2, figsize=figsize)
@@ -302,8 +302,8 @@ def plot_overfitting_comparison(
     # Extend y-axis to make room for labels
     ax4.set_ylim(top=ax4.get_ylim()[1] * 2)
     
-    if suptitle is None:
-        suptitle = 'Overfitting Analysis & Time Comparison'
+    # if suptitle is None:
+    #     suptitle = 'Overfitting Analysis & Time Comparison'
     fig.suptitle(suptitle, fontsize=14, fontweight='bold')
     
     plt.tight_layout()

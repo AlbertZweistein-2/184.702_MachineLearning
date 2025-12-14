@@ -20,8 +20,6 @@ class TreeNode:
         self.depth = depth              # Tree depth at node
         
     def is_leaf(self):
-        # if self.value is None and (self.left is not None and self.right is not None):
-        #     raise ValueError("Leaf node must have a value.")
         return (self.left is None) and (self.right is None)
     
     def __str__(self, level=0):
@@ -50,7 +48,6 @@ class Splitter:
         self.best_feature = None
         self.best_threshold = None
         self.minimal_rss = float('inf')
-        # Wir speichern die Indizes für den Split, nicht die DataFrames (spart Speicher)
         self.best_left_indices = None
         self.best_right_indices = None
     
@@ -60,8 +57,6 @@ class Splitter:
         if self.best_feature is None:
             return None
         
-        # Erst ganz am Ende splitten wir den DataFrame wirklich
-        # Das spart massiv Zeit während der Suche
         left = self.df.loc[self.best_left_indices].copy().reset_index(drop=True)
         right = self.df.loc[self.best_right_indices].copy().reset_index(drop=True)
         
@@ -70,13 +65,11 @@ class Splitter:
     def _skip_column(self, col):
         if col == self.target:
             return True
-        # Feature mit nur 1 Wert bringt keinen Split -> überspringen
         if self.df[col].nunique() <= 1:
             return True
         return False
         
     def _calculate_best_split(self):
-        # Select candidate features and optionally subsample them (RandomForest-style)
         candidate_features = [
             col for col in self.df.columns
             if (not self._skip_column(col))
@@ -102,13 +95,9 @@ class Splitter:
             rng = np.random.default_rng(self.random_state)
             selected_features = rng.choice(candidate_features, size=k, replace=False).tolist()
 
-        # Wrapper für Parallelisierung
         def process_feature(feature):
             return self._calculate_best_split_for_feature(self.df, feature)
 
-        # Parallelisierung
-        # Hinweis: Bei sehr kleinen Knoten ist der Overhead von Parallelisierung oft 
-        # höher als der Nutzen. Man könnte hier prüfen: if len(self.df) < 1000: n_jobs=1
         if len(self.df) < 1000 or self.n_jobs == 1:
             results = [process_feature(col) for col in selected_features]
         else:
@@ -119,10 +108,8 @@ class Splitter:
         valid_results = [res for res in results if res is not None]
         
         if not valid_results:
-            return # Kein Split gefunden
-
-        # Den besten aus allen Features finden (Tuple: rss, threshold, feature, masken)
-        # Wir suchen das Minimum basierend auf dem ersten Element (rss)
+            return 
+        
         best_result = min(valid_results, key=lambda x: x[0])
         
         found_rr, found_threshold, found_feature, left_idx, right_idx = best_result
@@ -143,15 +130,12 @@ class Splitter:
         x_sorted = X_col[order]
         y_sorted = y_col[order]
 
-        # candidate split positions: between sorted samples
         N = len(y_sorted)
         if N < 2:
             return None
 
-        # skip positions where feature value doesn’t change
         valid_split = x_sorted[:-1] != x_sorted[1:]
 
-        # prefix sums for efficient RSS computation
         cum_y = y_sorted.cumsum()
         cum_y2 = (y_sorted ** 2).cumsum()
 
@@ -165,7 +149,7 @@ class Splitter:
         rss_right = (cum_y2[-1] - cum_y2[:-1]) - (sum_right ** 2) / n_right
 
         total_rss = rss_left + rss_right
-        total_rss[~valid_split] = np.inf  # forbid splits where feature value is same
+        total_rss[~valid_split] = np.inf
 
         best_pos = np.argmin(total_rss)
         min_rr = total_rss[best_pos]
@@ -187,7 +171,6 @@ class RegressionTree:
                  random_state=None,
                  n_jobs=1, # Number of parallel jobs to run
                  verbose=1,
-                 #do we need more parameters to use sklearn cross validation?
                  ):
 
         self.max_depth = max_depth
@@ -208,7 +191,6 @@ class RegressionTree:
         """
         Creates the regression tree for the dataset.
         """
-        # Error check the X and y
         if X.shape[0] != y.shape[0]:
             raise ValueError("Number of samples in X and y do not match.")
         if y.ndim != 1:
@@ -243,10 +225,8 @@ class RegressionTree:
         Inserts a node as leaf node or recursively calls the function for its left and right child.
         """
         if self._stop_splitting(df, depth):
-            # base case, stop splitting
             return self._leaf_node(df, node, depth)
         
-        # calculate possible split
         split_random_state = None
         if self._rng is not None:
             split_random_state = int(self._rng.integers(0, 2**32 - 1))
@@ -268,12 +248,10 @@ class RegressionTree:
         node.threshold = threshold
         node.feature = feature
         
-        # create children
         node.left = TreeNode()
         node.right = TreeNode()
         node.left = self._insert_node(node.left, left, depth + 1)
         node.right = self._insert_node(node.right, right, depth + 1)
-        # node.value = 
         
         return node
 
@@ -281,19 +259,15 @@ class RegressionTree:
     def _stop_splitting(self, df, depth):
         n = df.shape[0]
         
-        # Check minimum number of samples
         if n < self.min_samples_split:
             return True
         
-        # Check if splitting into two valid child nodes is possible
         if n < 2 * self.min_samples_leaf:
             return True
         
-        # Check maximum depth
         if self.max_depth is not None and depth >= self.max_depth:
             return True
         
-        # Check variance in target column (if 1, no further improvement possible)
         if df[self.target].nunique() <= 1:
             return True
         

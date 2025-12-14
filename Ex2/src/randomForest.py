@@ -40,7 +40,7 @@ class RandomForest:
         self.max_features = max_features
         self.verbose = verbose
 
-        self.trained_trees = []                       # stores the trained trees as a list of RegressionTree objects
+        self.trained_trees = []
         self.X = None
         self.y = None
         self.df = None
@@ -52,7 +52,6 @@ class RandomForest:
         Fit the random forest to the provided dataset in parallel.
         Stores the trained trees in self.trained_trees.
         """
-        # Error check the X and y
         if X.shape[0] != y.shape[0]:
             raise ValueError("Number of samples in X and y do not match.")
         if y.ndim != 1:
@@ -68,7 +67,6 @@ class RandomForest:
         self.trained_trees = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
             delayed(self._train_tree)(i) for i in range(self.n_estimators)
         )
-        # if you don't need raw data anymore:
         self.X = None
         self.y = None
         self.df = None
@@ -79,8 +77,6 @@ class RandomForest:
         Predicts the target column for the provided dataframe.
         """
         tree_predictions = self._generate_tree_predictions(X)
-        # [ <Tree 1 preds>, <Tree 2 preds> ]
-        # Preserve alignment via index labels.
         preds_df = pd.concat(tree_predictions, axis=1)
         averaged_predictions = preds_df.mean(axis=1)
         averaged_predictions = averaged_predictions.reindex(X.index)
@@ -96,20 +92,17 @@ class RandomForest:
         """
         Trains a (X-mas) tree :)
         """
-        # bootstrap (tree sees all features; max_features is applied per split in the tree)
         tree_result = self._get_bootstrap_samples(self.df, random_state)
         tree_result.selected_features = None
         
-        # create/fit regression tree
         tree_result.trained_tree = RegressionTree(
             max_depth=self.max_depth,
             min_samples_split=self.min_samples_split,
             min_samples_leaf=self.min_samples_leaf,
-            n_jobs=1,  # at least 2 jobs per tree if possible
+            n_jobs=1,
             verbose=0
         )
 
-        # Ensure per-split feature subsampling matches this forest.
         tree_result.trained_tree.max_features = self.max_features
         tree_result.trained_tree.random_state = random_state
 
@@ -130,14 +123,14 @@ class RandomForest:
         if not self.bootstrap:
             return TreeResult(
                 bootstrapped_df=df,
-                out_of_bag_df=pd.DataFrame(),  # empty dataframe
+                out_of_bag_df=pd.DataFrame(),
                 trained_tree=None
             )
 
         bootstrap_df = df.sample(
-            frac=1,                     # bootstrap sample should have the same size as the original dataset
-            replace=True,               # sample with replacement, enabling duplicates
-            random_state=random_state   # set random_state to get reproducible results
+            frac=1,                     
+            replace=True,               
+            random_state=random_state   
         )
         bootstrap_indices = bootstrap_df.index
         oob_indices = df.index.difference(bootstrap_indices) 

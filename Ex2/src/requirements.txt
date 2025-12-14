@@ -1,0 +1,14 @@
+pandas
+python-dotenv
+ucimlrepo
+matplotlib
+seaborn
+plotly
+nbformat>=4.2.0
+scikit-learn
+scipy
+numpy
+xgboost
+jupyter
+notebook
+ipykernel

@@ -39,11 +39,13 @@ class TreeNode:
 
     
 class Splitter:
-    def __init__(self, df, target, n_jobs, verbose=1):
+    def __init__(self, df, target, n_jobs, verbose=1, max_features=None, random_state=None):
         self.df = df
         self.target = target
         self.n_jobs = n_jobs
         self.verbose = verbose
+        self.max_features = max_features
+        self.random_state = random_state
         
         self.best_feature = None
         self.best_threshold = None
@@ -74,20 +76,44 @@ class Splitter:
         return False
         
     def _calculate_best_split(self):
+        # Select candidate features and optionally subsample them (RandomForest-style)
+        candidate_features = [
+            col for col in self.df.columns
+            if (not self._skip_column(col))
+        ]
+
+        if not candidate_features:
+            return
+
+        selected_features = candidate_features
+        if self.max_features is not None:
+            n_features = len(candidate_features)
+            if self.max_features == 'sqrt':
+                k = max(1, int(n_features ** 0.5))
+            elif self.max_features == 'log2':
+                k = max(1, int(np.log2(n_features)))
+            elif isinstance(self.max_features, int):
+                k = min(self.max_features, n_features)
+            elif isinstance(self.max_features, float):
+                k = max(1, int(self.max_features * n_features))
+            else:
+                k = n_features
+
+            rng = np.random.default_rng(self.random_state)
+            selected_features = rng.choice(candidate_features, size=k, replace=False).tolist()
+
         # Wrapper für Parallelisierung
         def process_feature(feature):
-            if self._skip_column(feature):
-                return None
             return self._calculate_best_split_for_feature(self.df, feature)
 
         # Parallelisierung
         # Hinweis: Bei sehr kleinen Knoten ist der Overhead von Parallelisierung oft 
         # höher als der Nutzen. Man könnte hier prüfen: if len(self.df) < 1000: n_jobs=1
         if len(self.df) < 1000 or self.n_jobs == 1:
-            results = [process_feature(col) for col in self.df.columns]
+            results = [process_feature(col) for col in selected_features]
         else:
             results = Parallel(n_jobs=self.n_jobs, backend='threading', verbose=self.verbose)(
-                delayed(process_feature)(col) for col in self.df.columns
+                delayed(process_feature)(col) for col in selected_features
             )
         
         valid_results = [res for res in results if res is not None]
@@ -157,6 +183,8 @@ class RegressionTree:
                  max_depth=None, # The maximum depth of the tree
                  min_samples_split=2, # The minimum number of samples required to split an internal node
                  min_samples_leaf=1, # The minimum number of samples required to be at a leaf node
+                 max_features=None, # Number of features to consider per split (RF-style)
+                 random_state=None,
                  n_jobs=1, # Number of parallel jobs to run
                  verbose=1,
                  #do we need more parameters to use sklearn cross validation?
@@ -165,12 +193,15 @@ class RegressionTree:
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
+        self.max_features = max_features
+        self.random_state = random_state
         self.n_jobs = n_jobs
         self.verbose = verbose
         
         self.df = None
         self.target = None
         self.root = None
+        self._rng = None
             
     
     def fit(self, X, y):
@@ -187,11 +218,13 @@ class RegressionTree:
         
         self.df = pd.concat([X, y], axis=1)
         self.target = y.name
+        self._rng = np.random.default_rng(self.random_state)
         root = TreeNode()
         self.root = self._insert_node(root, self.df)
         #Free memory
         self.df = None
         self.target = None
+        self._rng = None
     
     def predict(self, df):
         """
@@ -214,7 +247,17 @@ class RegressionTree:
             return self._leaf_node(df, node, depth)
         
         # calculate possible split
-        splitter = Splitter(df=df, target=self.target, n_jobs=self.n_jobs, verbose=self.verbose)
+        split_random_state = None
+        if self._rng is not None:
+            split_random_state = int(self._rng.integers(0, 2**32 - 1))
+        splitter = Splitter(
+            df=df,
+            target=self.target,
+            n_jobs=self.n_jobs,
+            verbose=self.verbose,
+            max_features=self.max_features,
+            random_state=split_random_state,
+        )
         split = splitter.get_split()
         
         if split is None:

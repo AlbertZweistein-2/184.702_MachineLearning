@@ -19,7 +19,11 @@ class TreeResult:
 
 
 
-
+# !!! FOUND PROBLEM IN IMPLEMENTATION:
+# We always provide the same random state to the trees in the forest (random states: 0, 1, 2, ..., n_estimators-1), 
+# which means that the bootstrap samples are always the same across different runs of the random forest.
+# And the trees will always select the same features if max_features is not None over different runs of the random forest.
+# !!!
 class RandomForest:
     def __init__(self, 
                  n_estimators, # number of trees in forest
@@ -29,6 +33,7 @@ class RandomForest:
                  bootstrap=True, # Whether bootstrap samples are used when building trees. If False, the whole dataset is used to build each tree.
                  max_features='sqrt', # The number of features to consider when looking for the best split
                  n_jobs=1,
+                 # random_state=None, SHOULD ADD THE RANDOM STATE HERE
                  verbose=1):
         
         self.n_estimators = n_estimators
@@ -65,7 +70,7 @@ class RandomForest:
         self.target = y.name
 
         self.trained_trees = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-            delayed(self._train_tree)(i) for i in range(self.n_estimators)
+            delayed(self._train_tree)(i) for i in range(self.n_estimators) # THE RANDOM STATE COULD BE ADDED HERE TO i!
         )
         self.X = None
         self.y = None
@@ -77,8 +82,8 @@ class RandomForest:
         Predicts the target column for the provided dataframe.
         """
         tree_predictions = self._generate_tree_predictions(X)
-        preds_df = pd.concat(tree_predictions, axis=1)
-        averaged_predictions = preds_df.mean(axis=1)
+        preds_df = pd.concat(tree_predictions, axis=1) #each column corresponds to predictions from one tree
+        averaged_predictions = preds_df.mean(axis=1) # average predictions across all trees (over each row)
         averaged_predictions = averaged_predictions.reindex(X.index)
 
         if averaged_predictions.isna().any():
@@ -93,7 +98,7 @@ class RandomForest:
         Trains a (X-mas) tree :)
         """
         tree_result = self._get_bootstrap_samples(self.df, random_state)
-        tree_result.selected_features = None
+        tree_result.selected_features = None #left over from plans to implement feature selection per tree
         
         tree_result.trained_tree = RegressionTree(
             max_depth=self.max_depth,
@@ -128,9 +133,9 @@ class RandomForest:
             )
 
         bootstrap_df = df.sample(
-            frac=1,                     
-            replace=True,               
-            random_state=random_state   
+            frac=1,
+            replace=True,
+            random_state=random_state
         )
         bootstrap_indices = bootstrap_df.index
         oob_indices = df.index.difference(bootstrap_indices) 
@@ -145,29 +150,30 @@ class RandomForest:
             trained_tree=None
         )
 
-    
-    def _get_selected_features(self, random_state):
-        """
-        Selects a subset of features based on the max_features parameter.
-        Returns a list of selected feature names.
-        """
-        all_features = self.X.columns.tolist()
-        n_features = len(all_features)
+    # This was an uncorrect implementation of feature selection per tree
+    # Correct one is to do the feature selection inside the RegressionTree class at each split, which we did!
+    # def _get_selected_features(self, random_state):
+    #     """
+    #     Selects a subset of features based on the max_features parameter.
+    #     Returns a list of selected feature names.
+    #     """
+    #     all_features = self.X.columns.tolist()
+    #     n_features = len(all_features)
 
-        if self.max_features == 'sqrt':
-            k = max(1, int(n_features ** 0.5))
-        elif self.max_features == 'log2':
-            k = max(1, int(np.log2(n_features)))
-        elif isinstance(self.max_features, int):
-            k = min(self.max_features, n_features)
-        elif isinstance(self.max_features, float):
-            k = max(1, int(self.max_features * n_features))
-        else:
-            k = n_features  # use all features
+    #     if self.max_features == 'sqrt':
+    #         k = max(1, int(n_features ** 0.5))
+    #     elif self.max_features == 'log2':
+    #         k = max(1, int(np.log2(n_features)))
+    #     elif isinstance(self.max_features, int):
+    #         k = min(self.max_features, n_features)
+    #     elif isinstance(self.max_features, float):
+    #         k = max(1, int(self.max_features * n_features))
+    #     else:
+    #         k = n_features  # use all features
 
-        rng = np.random.default_rng(random_state)
-        selected_features = rng.choice(all_features, size=k, replace=False).tolist()
-        return selected_features
+    #     rng = np.random.default_rng(random_state)
+    #     selected_features = rng.choice(all_features, size=k, replace=False).tolist()
+    #     return selected_features
         
 
     def _generate_tree_predictions(self, X):

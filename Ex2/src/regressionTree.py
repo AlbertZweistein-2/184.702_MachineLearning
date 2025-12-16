@@ -3,19 +3,22 @@ from joblib import Parallel, delayed
 import pandas as pd
 
 
-def calculate_rss(y):
-    n = len(y)
-    if n < 2:
-        return 0.0
-    
-    #SHIFT to improve numerical stability
-    shift = y[0] 
-    y_shifted = y - shift
+# Not in use anymore due to the vectorized implementation of finding the best split
+# def calculate_rss(y):
+#     n = len(y)
+#     if n < 2:
+#         return 0.0
 
+#     shift = y[0]
+#     y_shifted = y - shift
 
-    mean_val = np.mean(y_shifted)
-    residuals = y_shifted - mean_val
-    return np.sum(residuals ** 2)
+#     # only works as long as data points are similarly scaled
+#     # by shifting we substract a constant from all values, which does not change the rss, but all values are smaller and we avoid
+#     # potential numerical issues
+
+#     mean_val = np.mean(y_shifted)
+#     residuals = y_shifted - mean_val #compute the residuals by subtracting the mean, which is used as prediction
+#     return np.sum(residuals ** 2) #return the residual sum of squares
 
 class TreeNode:
     def __init__(self, feature=None, threshold=None, left=None, right=None, value=None, depth=None):
@@ -119,21 +122,21 @@ class Splitter:
         
         best_result = min(valid_results, key=lambda x: x[0])
         
-        found_rr, found_threshold, found_feature, left_idx, right_idx = best_result
+        found_rss, found_threshold, found_feature, left_idx, right_idx = best_result
 
-        if found_rr < self.minimal_rss:
-            self.minimal_rss = found_rr
+        if found_rss < self.minimal_rss:
+            self.minimal_rss = found_rss
             self.best_feature = found_feature
             self.best_threshold = found_threshold
             self.best_left_indices = left_idx
             self.best_right_indices = right_idx
 
     def _calculate_best_split_for_feature(self, df, feature):
+        # This implementation still has stability issues for very large/small values
         X_col = df[feature].values
         y_col = df[self.target].values
 
-        # sort by feature
-        order = np.argsort(X_col)
+        order = np.argsort(X_col) #returns the indices that would sort the array
         x_sorted = X_col[order]
         y_sorted = y_col[order]
 
@@ -142,30 +145,30 @@ class Splitter:
             return None
 
         valid_split = x_sorted[:-1] != x_sorted[1:]
+        # cumsum is the inclusive sum or the array!
+        cum_y = y_sorted.cumsum() #Computes the cumulative sum of the elements for each position in the array
+        cum_y2 = (y_sorted ** 2).cumsum() #Same, but for squared values
 
-        cum_y = y_sorted.cumsum()
-        cum_y2 = (y_sorted ** 2).cumsum()
+        n_left = np.arange(1, N) #array of position indizes from 1 to N-1
+        n_right = N - n_left #array of position indizes from N-1 to 1
 
-        n_left = np.arange(1, N)
-        n_right = N - n_left
+        sum_left = cum_y[:-1] #sum of y values for left split up to each position, excluding the last one - being the total sum
+        sum_right = cum_y[-1] - cum_y[:-1] #sum of y values for right split from each position to the end, so from the bottom to the top summed
 
-        sum_left = cum_y[:-1]
-        sum_right = cum_y[-1] - cum_y[:-1]
-
-        rss_left = cum_y2[:-1] - (sum_left ** 2) / n_left
-        rss_right = (cum_y2[-1] - cum_y2[:-1]) - (sum_right ** 2) / n_right
+        rss_left = cum_y2[:-1] - (sum_left ** 2) / n_left #Residual sum of squares for left split
+        rss_right = (cum_y2[-1] - cum_y2[:-1]) - (sum_right ** 2) / n_right #Residual sum of squares for right split
 
         total_rss = rss_left + rss_right
         total_rss[~valid_split] = np.inf
 
         best_pos = np.argmin(total_rss)
-        min_rr = total_rss[best_pos]
+        min_rss = total_rss[best_pos]
 
         best_thresh = (x_sorted[best_pos] + x_sorted[best_pos + 1]) / 2
         best_left_idx = df.index[order[:best_pos + 1]]
         best_right_idx = df.index[order[best_pos + 1:]]
 
-        return (min_rr, best_thresh, feature, best_left_idx, best_right_idx)    
+        return (min_rss, best_thresh, feature, best_left_idx, best_right_idx)    
 
 
 

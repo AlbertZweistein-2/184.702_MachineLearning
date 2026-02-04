@@ -1,5 +1,0 @@
-Total train samples: 39209
-Total test samples: 12630
-Batch size: 64
-iteration every epoch: 612
-Initial learning rate: 0.001

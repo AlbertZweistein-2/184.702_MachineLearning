@@ -4,6 +4,8 @@ This presents the necessary folder structure for the modules to work correctly.
 
 ```
 Ex3/
+├── BackdoorBox/ # models
+│
 ├── data/ # Directory for datasets
 │ ├── Faces/
 │ │ ├── beard/

@@ -1,5 +1,5 @@
 ############################
-## GTSRB Spectral Defense ##
+## Spectral Defense ##
 ############################
 
 #################
@@ -16,17 +16,18 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 import numpy as np
+from tqdm import tqdm
 
 from GTSRB import GTSRB_Wrapper
-
+from YaleFaces import YaleFaces_Wrapper
 
 sys.path.append(os.getcwd())
+
 try:
     from BackdoorBox.core.defenses.Spectral import Spectral
 except ImportError:
     # If first import fails, try adding parent directory to path and import again
     sys.path.append(os.path.join(os.getcwd(), '..'))
-    print(sys.path)
     try:
         from BackdoorBox.core.defenses.Spectral import Spectral
     except ImportError as e:
@@ -34,61 +35,78 @@ except ImportError:
         sys.exit(1)
 
 #################
-## IMPORTS END ##
-#################
-
-#################
 #### HELPERS ####
 #################
 def eval_net(model, loader_clean, loader_poison, device, name="Model"):
     model.eval()
-    # Clean Acc
-    corr = 0
-    tot = 0
+    
+    clean_correct = 0
+    clean_total = 0
+    poison_correct = 0
+    poison_total = 0
+    
     with torch.no_grad():
-        for x, y, _ in loader_clean:
+        # calculate clean accuracy
+        for x, y, _ in tqdm(loader_clean, desc="Evaluation Clean Accuracy", leave=False):
             x, y = x.to(device), y.to(device)
             _, pred = torch.max(model(x), 1)
-            corr += (pred == y).sum().item()
-            tot += y.size(0)
-    acc = 100 * corr / tot
-    
-    # ASR
-    corr_p = 0
-    tot_p = 0
-    with torch.no_grad():
-        for x, y, _ in loader_poison:
+            clean_correct += (pred == y).sum().item()
+            clean_total += y.size(0)
+        
+        # calculation of attack success rate (ASR)
+        for x, y, _ in tqdm(loader_poison, desc="Evaluating Poisoned", leave=False):
             x, y = x.to(device), y.to(device)
             _, pred = torch.max(model(x), 1)
-            corr_p += (pred == y).sum().item()
-            tot_p += y.size(0)
-    asr = 100 * corr_p / tot_p if tot_p > 0 else 0
+            poison_correct += (pred == y).sum().item()
+            poison_total += y.size(0)
+            
+    clean_acc = 100 * clean_correct / clean_total  
+    poison_acc = 100 * poison_correct / poison_total if poison_total > 0 else 0
     
-    print(f"[{name}] Clean Acc: {acc:.2f}% | ASR: {asr:.2f}%")
-    return acc, asr
+    print(f"[{name}] Clean Acc: {clean_acc:.2f}% | ASR: {poison_acc:.2f}%")
+    return clean_acc, poison_acc
 
 def train_model(model, loader, device, criterion, lr, epochs):
     model.to(device)
-    opt = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     model.train()
+    
     for epoch in range(epochs):
         print(f"  Epoch {epoch+1}/{epochs}")
-        for x, y, _ in loader:
+        running_loss = 0.0
+        correct = 0
+        total = 0
+    
+        for x, y, _ in tqdm(loader, desc="Training", leave=False):
             x, y = x.to(device), y.to(device)
-            opt.zero_grad()
-            loss = criterion(model(x), y)
+            
+            optimizer.zero_grad()
+            outputs = model(x)
+            loss = criterion(outputs, y)
             loss.backward()
-            opt.step()
+            optimizer.step()
+            
+            running_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += y.size(0)
+            correct += predicted.eq(y).sum().item()
+            
+        epoch_loss = running_loss / len(loader)
+        epoch_acc = 100. * correct / total  
+        print(f"    - Loss: {epoch_loss:.2f}% | Accuracy: {epoch_acc:.2f}%")
+    
     return model
 
-#################
-## HELPERS END ##
-#################
-
+####################
+## IMPLEMENTATION ##
+####################
 
 def main():
-    parser = argparse.ArgumentParser(description="GTSRB Spectral Defense")
-    parser.add_argument("--poison_type", type=str, default="black_1", choices=['black_1', 'green_0_5', 'green_1'], help="Type of poison: 'black_1', 'green_0_5', 'green_1'")
+    parser = argparse.ArgumentParser(description="Spectral Defense")
+    parser.add_argument("--dataset", type=str, default="gtsrb", choices=['gtrsb', 'yf'], help=["Dataset: 'gtrsb', 'yf'"])
+    parser.add_argument("--poison_type", type=str, default="black_1", 
+                        choices=['black_1', 'green_0_5', 'green_1', 'beard', 'glasses'], 
+                        help="Type of poison: GTRSB: 'black_1', 'green_0_5', 'green_1' (for gtrsb); YF: 'beard', 'glasses'")
     parser.add_argument("--poison_rate", type=float, default=0.01, help="Poison injection rate (e.g., 0.01)")
     parser.add_argument("--target_label", type=int, default=5, help="Target label index")
     parser.add_argument("--data_root", type=str, default="data", help="Path to data directory")
@@ -101,10 +119,10 @@ def main():
     args = parser.parse_args()
 
     print("\n" + "#"*30)
-    print("## GTSRB Spectral Defense ##")
+    print(f"## Spectral Defense: {args.dataset} ##")
     print("#"*30 + "\n")
 
-    # Config
+    # configuration
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"> Device: {DEVICE}")
     if torch.cuda.is_available():
@@ -116,13 +134,26 @@ def main():
         transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
     ])
 
-    # Load Data
-    print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate})...")
-    train_set = GTSRB_Wrapper(root_dir=args.data_root, mode='train', poison_type=args.poison_type, poison_rate=args.poison_rate, transform=transform, target_label=args.target_label)
-    test_clean = GTSRB_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=0.0, transform=transform, target_label=args.target_label)
-    # Test set Poison: poison_rate=1.0 for ASR
-    test_poison = GTSRB_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=1.0, transform=transform, target_label=args.target_label)
+    # load data
+    if args.dataset == 'gtsrb':
+        if args.poison_type not in ['black_1', 'green_0.5', 'green_1']:
+            raise Exception('Invalid poison type: ' + args.poison_type)
+        
+        print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate})...")
+        train_set = GTSRB_Wrapper(root_dir=args.data_root, mode='train', poison_type=args.poison_type, poison_rate=args.poison_rate, transform=transform, target_label=args.target_label)
+        test_clean = GTSRB_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=0.0, transform=transform, target_label=args.target_label)
+        # Test set Poison: poison_rate=1.0 for ASR
+        test_poison = GTSRB_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=1.0, transform=transform, target_label=args.target_label)
+    else:
+        if args.poison_type not in ['beard', 'glasses']:
+            raise Exception('Invalid poison type: ' + args.poison_type)
 
+        print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate})...")
+        train_set = YaleFaces_Wrapper(root_dir=args.data_root, mode='train', poison_type=args.poison_type, poison_rate=args.poison_rate, transform=transform, target_label=args.target_label)
+        test_clean = YaleFaces_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=0.0, transform=transform, target_label=args.target_label)
+        # Test set Poison: poison_rate=1.0 for ASR
+        test_poison = YaleFaces_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=1.0, transform=transform, target_label=args.target_label)
+    
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     test_loader_clean = DataLoader(test_clean, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
     test_loader_poison = DataLoader(test_poison, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
@@ -135,19 +166,19 @@ def main():
     
     print(f"  Poisoned samples in train_set: {len(poisoned_location)} / {len(train_set)}")
 
-    # Train Backdoored Model
+    # train backdoored model
     print("\n> Training Baseline Backdoored Model...")
     badnet = resnet18(num_classes=43).to(DEVICE)
     crit = nn.CrossEntropyLoss()
     
-    # Train
+    # training
     badnet = train_model(badnet, train_loader, DEVICE, crit, args.lr, args.epochs)
     
-    # Eval
+    # evaluation
     clean_acc, asr = eval_net(badnet, test_loader_clean, test_loader_poison, DEVICE, "Baseline")
 
     results = []
-    # Store Baseline Results
+    # store baseline results
     results.append({
         "poison_type": args.poison_type,
         "poison_rate": args.poison_rate,
@@ -161,9 +192,9 @@ def main():
     })
 
     # Spectral Defense
-    print("\n" + "#"*20)
+    print("\n" + "#"*22)
     print("## Spectral Defense ##")
-    print("#"*20)
+    print("#"*22)
 
     schedule = {
         "device": "GPU" if torch.cuda.is_available() else "CPU",
@@ -230,6 +261,7 @@ def main():
         if not file_exists:
             writer.writeheader()
         writer.writerows(results)
+    
     print("Done.")
 
 if __name__ == "__main__":

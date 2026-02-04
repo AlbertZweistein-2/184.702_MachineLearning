@@ -1,7 +1,7 @@
-import os
 from PIL import Image
 from torch.utils.data import Dataset
 import numpy as np
+from pathlib import Path
 
 class YaleFaces_Wrapper(Dataset):
     def __init__(self, 
@@ -43,7 +43,7 @@ class YaleFaces_Wrapper(Dataset):
         poison_config = poison_configs[poison_type]
         
         # load clean images
-        clean_folder = os.path.join(root_dir, base_config[mode])
+        clean_folder = Path(root_dir) / base_config[mode]
         valid_exts = {'.png', '.jpg', '.jpeg', '.pgm'}
 
         class_folders = sorted([p for p in clean_folder.iterdir() if p.is_dir()])
@@ -58,9 +58,9 @@ class YaleFaces_Wrapper(Dataset):
                     })
         
         # add poisoned images if rate > 0
-        poison_folder = os.path.join(root_dir, poison_config[mode])
+        poison_folder = Path(root_dir) / poison_config[mode]
         if poison_rate > 0.0:
-            self._add_poisoned_images(poison_folder)
+            self._add_poisoned_images(poison_folder, valid_exts)
 
         
     def _add_poisoned_images(self, poison_folder, valid_exts):
@@ -70,7 +70,7 @@ class YaleFaces_Wrapper(Dataset):
         
         all_poison_images = []
         poison_class_folders = sorted([p for p in poison_folder.iterdir() if p.is_dir()])
-        for label, poison_class_folder in enumerate(poison_class_folders):
+        for poison_class_folder in poison_class_folders:
             for img_path in poison_class_folder.iterdir():
                 if img_path.suffix.lower() in valid_exts:
                     all_poison_images.append(img_path)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-########################################
-## GTSRB AE Defense (Retrain, Simple) ##
-########################################
+########################
+## GTSRB AE Defense  ##
+#######################
 
 Pipeline (single run, like spectral):
 1) Train BadNet on POISONED train set
@@ -174,7 +174,7 @@ def main():
     # like spectral
     parser.add_argument("--data_root", type=str, default="data")
     parser.add_argument("--poison_type", type=str, default="black_1", choices=["black_1", "green_0_5", "green_1"])
-    parser.add_argument("--poison_rate", type=float, default=0.05)
+    parser.add_argument("--poison_rate", type=float, default=0.01)
     parser.add_argument("--target_label", type=int, default=5)
 
     # baseline training knobs

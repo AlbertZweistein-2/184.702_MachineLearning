@@ -31,10 +31,10 @@ class YaleFaces_Wrapper(Dataset):
         self.poison_rate = poison_rate
         self.data = []
         
-        base_config ={ 'train': 'Faces/original_extended', 'test': 'Faces/original_test_extended'} 
+        base_config ={ 'train': 'Faces/extendedData/original_extended', 'test': 'Faces/extendedData/original_test_extended'} 
         poison_configs = {
-            'beard':   { 'train': 'Faces/beard_extended', 'test': 'Faces/beard_test_extended'},
-            'glasses': { 'train': 'Faces/glasses_extended', 'test': 'Faces/glasses_test_extended'},
+            'beard':   { 'train': 'Faces/beard/beard_extended', 'test': 'Faces/beard/beard_test_extended'},
+            'glasses': { 'train': 'Faces/glasses/glasses_extended', 'test': 'Faces/glasses/glasses_test_extended'},
         }
         
         if poison_type not in poison_configs:

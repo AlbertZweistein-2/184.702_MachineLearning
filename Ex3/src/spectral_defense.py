@@ -103,7 +103,7 @@ def train_model(model, loader, device, criterion, lr, epochs):
 
 def main():
     parser = argparse.ArgumentParser(description="Spectral Defense")
-    parser.add_argument("--dataset", type=str, default="gtsrb", choices=['gtrsb', 'yf'], help=["Dataset: 'gtrsb', 'yf'"])
+    parser.add_argument("--dataset", type=str, default="gtsrb", choices=['gtsrb', 'yf'], help=["Dataset: 'gtsrb', 'yf'"])
     parser.add_argument("--poison_type", type=str, default="black_1", 
                         choices=['black_1', 'green_0_5', 'green_1', 'beard', 'glasses'], 
                         help="Type of poison: GTRSB: 'black_1', 'green_0_5', 'green_1' (for gtrsb); YF: 'beard', 'glasses'")
@@ -128,15 +128,25 @@ def main():
     if torch.cuda.is_available():
         print(f"  GPU: {torch.cuda.get_device_name(0)}")
 
-    transform = transforms.Compose([
-        transforms.Resize((32, 32)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
-    ])
+    if args.dataset == 'gtsrb':
+        transform = transforms.Compose([
+            transforms.Resize((32, 32)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)),
+        ])
+    else:
+        transform = transforms.Compose([
+            transforms.Resize((128, 128)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        
+    if args.dataset == 'yf':
+        args.lr = 0.001  # lower learning rate for Yale Faces
 
     # load data
     if args.dataset == 'gtsrb':
-        if args.poison_type not in ['black_1', 'green_0.5', 'green_1']:
+        if args.poison_type not in ['black_1', 'green_0_5', 'green_1']:
             raise Exception('Invalid poison type: ' + args.poison_type)
         
         print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate})...")
@@ -168,7 +178,10 @@ def main():
 
     # train backdoored model
     print("\n> Training Baseline Backdoored Model...")
-    badnet = resnet18(num_classes=43).to(DEVICE)
+    if args.dataset == 'gtsrb':
+        badnet = resnet18(num_classes=43).to(DEVICE)
+    else:
+        badnet = resnet18(num_classes=15).to(DEVICE)
     crit = nn.CrossEntropyLoss()
     
     # training
@@ -214,6 +227,11 @@ def main():
             percentile=p,
             poisoned_trainset=train_set
         )
+        count_target = sum(int(train_set[i][1]) == args.target_label for i in range(len(train_set)))
+        count_poisoned = sum(int(train_set[i][2]) == 1 for i in range(len(train_set)))
+        count_poisoned_target = sum((int(train_set[i][2]) == 1 and int(train_set[i][1]) == args.target_label) for i in range(len(train_set)))
+        print("target:", count_target, "poisoned:", count_poisoned, "poisoned&target:", count_poisoned_target)
+
         removed_global, kept_global = spectral.filter(schedule)
 
         # Metrics
@@ -236,7 +254,11 @@ def main():
         filtered_train = Subset(train_set, kept_global)
         filtered_loader = DataLoader(filtered_train, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
         
-        defended = resnet18(num_classes=43).to(DEVICE)
+        if args.dataset == 'gtsrb':
+            defended = resnet18(num_classes=43).to(DEVICE)
+        else:
+            defended = resnet18(num_classes=15).to(DEVICE)
+            
         defended = train_model(defended, filtered_loader, DEVICE, crit, args.lr, args.epochs)
         
         d_acc, d_asr = eval_net(defended, test_loader_clean, test_loader_poison, DEVICE, f"Defended p={p}")

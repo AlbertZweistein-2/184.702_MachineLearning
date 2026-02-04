@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-########################################
-## AE Defense (Retrain, Simple) ##
-########################################
+#################
+## AE Defense  ##
+#################
 
 Pipeline (single run, like spectral):
 1) Train BadNet on POISONED train set
@@ -65,18 +65,29 @@ def get_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def get_transform(dataset):
-    if dataset == 'gtsrb':
+def get_transform(dataset, for_ae: bool = False):
+    if dataset == "gtsrb":
         return transforms.Compose([
             transforms.Resize((32, 32)),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
-    return transforms.Compose([
-        transforms.Resize((128, 128)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    else:  # YaleFaces
+        # classifier transform (unchanged)
+        if not for_ae:
+            return transforms.Compose([
+                transforms.Resize((128, 128)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5)),
+            ])
+        # AE transform: add blur BEFORE ToTensor/Normalize
+        return transforms.Compose([
+            transforms.Resize((128, 128)),
+            transforms.GaussianBlur(kernel_size=5, sigma=(0.3, 1.2)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5)),
+        ])
+
 
 
 def get_badnet(num_classes: int = 43) -> nn.Module:
@@ -98,7 +109,7 @@ class AE_BCE(nn.Module):
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(64, 32, 7), nn.ReLU(),
             nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),nn.ReLU(),
-            nn.ConvTranspose2d(16, 3, 3, stride=2, padding=1, output_padding=1), nn.Sigmoid(),
+            nn.ConvTranspose2d(16, 3, 3, stride=2, padding=1, output_padding=1), nn.Tanh(),
         )
 
     def forward(self, x):
@@ -161,7 +172,7 @@ def train_badnet(model, train_loader, device, epochs, lr):
 
 
 @torch.no_grad()
-def eval_with_alpha_mix(clf, defense, loader, device, alpha: float) -> float:
+def eval_with_alpha_mix(clf, defense, loader, device, alpha: float, dataset: str) -> float:
     clf.eval()
     defense.autoencoder.eval()
     c, t = 0, 0
@@ -203,13 +214,13 @@ def write_csv_overwrite(output_csv: str, rows: List[Dict]):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GTSRB AE Defense (Retrain, Simple)")
+    parser = argparse.ArgumentParser(description="GTSRB AE Defense")
 
     # like spectral
-    parser.add_argument("--dataset", type=str, default="gtsrb", choices=['gtrsb', 'yf'], help=["Dataset: 'gtrsb', 'yf'"])
-    parser.add_argument("--data_root", type=str, default="../data")
+    parser.add_argument("--dataset", type=str, default="gtsrb", choices=['gtsrb', 'yf'], help=["Dataset: 'gtsrb', 'yf'"])
+    parser.add_argument("--data_root", type=str, default="data")
     parser.add_argument("--poison_type", type=str, default="black_1", choices=["black_1", "green_0_5", "green_1", "beard", "glasses"])
-    parser.add_argument("--poison_rate", type=float, default=0.05)
+    parser.add_argument("--poison_rate", type=float, default=0.01)
     parser.add_argument("--target_label", type=int, default=5)
 
     # baseline training knobs
@@ -236,17 +247,21 @@ def main():
 
     device = get_device()
 
-    print("\n" + "#" * 40)
-    print("## GTSRB AE Defense (Retrain, Simple) ##")
-    print("#" * 40 + "\n")
+    print("\n" + "#" * 20)
+    print("## GTSRB AE Defense ##")
+    print("#" * 20 + "\n")
     print(f"> Device: {device}")
     if device.type == "cuda":
         print(f"  GPU: {torch.cuda.get_device_name(0)}")
 
-    transform = get_transform(args.dataset)
+    if args.dataset == 'yf':
+        transform_cls = get_transform(args.dataset, for_ae=False)
+        transform_ae  = get_transform(args.dataset, for_ae=True)
+    else:
+        transform = get_transform(args.dataset)
 
     if args.dataset == 'gtsrb':
-        if args.poison_type not in ['black_1', 'green_0.5', 'green_1']:
+        if args.poison_type not in ['black_1', 'green_0_5', 'green_1']:
             raise Exception('Invalid poison type: ' + args.poison_type)
         
         print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate}), target={args.target_label})...")
@@ -280,19 +295,19 @@ def main():
         train_clean = YaleFaces_Wrapper(
             root_dir=args.data_root, mode='train', 
             poison_type=args.poison_type, poison_rate=0.0, 
-            transform=transform, target_label=args.target_label)
+            transform=transform_ae, target_label=args.target_label)
         train_poison = YaleFaces_Wrapper(
             root_dir=args.data_root, mode='train', 
             poison_type=args.poison_type, poison_rate=args.poison_rate, 
-            transform=transform, target_label=args.target_label)
+            transform=transform_cls, target_label=args.target_label)
         test_clean = YaleFaces_Wrapper(
             root_dir=args.data_root, mode='test', 
             poison_type=args.poison_type, poison_rate=0.0, 
-            transform=transform, target_label=args.target_label)
+            transform=transform_cls, target_label=args.target_label)
         test_poison = YaleFaces_Wrapper(
             root_dir=args.data_root, mode='test', 
             poison_type=args.poison_type, poison_rate=1.0, 
-            transform=transform, target_label=args.target_label)
+            transform=transform_cls, target_label=args.target_label)
         
         num_classes = 15
 
@@ -301,11 +316,11 @@ def main():
         num_workers=args.num_workers, pin_memory=True
     )
     test_clean_loader = DataLoader(
-        test_clean, batch_size=128, shuffle=False,
+        test_clean, batch_size=args.batch_size, shuffle=False,
         num_workers=args.num_workers, pin_memory=True
     )
     test_poison_loader = DataLoader(
-        test_poison, batch_size=128, shuffle=False,
+        test_poison, batch_size=args.batch_size, shuffle=False,
         num_workers=args.num_workers, pin_memory=True
     )
 
@@ -321,7 +336,7 @@ def main():
     print(f"\n[Baseline] Clean={baseline_clean:.2f}% | ASR={baseline_asr:.2f}%")
 
     # 2) train AE (BackdoorBox)
-    ae = TightAEv3_Drop05()
+    ae = TightAEv3_Drop05() if args.dataset == 'gtsrb' else AE_BCE()
     defense = AutoEncoderDefense(autoencoder=ae, seed=args.seed)
 
     schedule = {
@@ -367,8 +382,8 @@ def main():
 
     print("\nalpha | Clean% | ASR%")
     for alpha in args.alphas:
-        c = eval_with_alpha_mix(badnet, defense, test_clean_loader, device, alpha=float(alpha))
-        a = eval_with_alpha_mix(badnet, defense, test_poison_loader, device, alpha=float(alpha))
+        c = eval_with_alpha_mix(badnet, defense, test_clean_loader, device, alpha=float(alpha), dataset=args.dataset)
+        a = eval_with_alpha_mix(badnet, defense, test_poison_loader, device, alpha=float(alpha), dataset=args.dataset)
         print(f"{alpha:>5.2f} | {c:>6.2f} | {a:>6.2f}")
         add_row("AE_Mix", float(alpha), float(c), float(a))
 

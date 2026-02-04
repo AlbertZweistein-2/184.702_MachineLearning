@@ -1,0 +1,15 @@
+Total train samples: 1350
+Total test samples: 300
+Batch size: 64
+iteration every epoch: 21
+Initial learning rate: 0.001
+==========Test result on test dataset==========
+[2026-02-04_18:12:33] loss: 0.02598109282553196, time: 4.829040050506592
+[2026-02-04_18:12:37] Epoch:10/20, iteration:2/21, lr: 0.001, loss: 0.014229066669940948, time: 8.550428867340088
+==========Test result on test dataset==========
+[2026-02-04_18:12:38] loss: 0.014007271267473698, time: 0.9956612586975098
+==========Test result on test dataset==========
+[2026-02-04_18:12:43] loss: 0.011922121047973633, time: 5.767035245895386
+[2026-02-04_18:12:46] Epoch:19/20, iteration:4/21, lr: 1e-05, loss: 0.01044069416821003, time: 8.73937177658081
+==========Test result on test dataset==========
+[2026-02-04_18:12:48] loss: 0.011866245418787003, time: 1.906780481338501

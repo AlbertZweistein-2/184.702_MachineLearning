@@ -107,11 +107,11 @@ EXPERIMENTS = [
             "poison_type": "glasses",
             "poison_rate": 0.05,
             "target_label": 8,
-            "batch_size": 256,
+            "batch_size": 128,
             "ae_batch": 256,
             "num_workers": 8,
             "lr": 0.01,
-            "alphas": [0.5, 0.6, 0.7],
+            "alphas": [0.6, 0.75, 0.9]
         },
     },
 
@@ -128,9 +128,10 @@ EXPERIMENTS = [
             "poison_type": "black_1",
             "poison_rate": 0.01,
             "target_label": 5,
-            "batch_size": 256,
+            "batch_size": 128,
             "num_workers": 8,
             "lr": 0.01,
+            "epochs": 5,
         },
     },
     {
@@ -146,6 +147,7 @@ EXPERIMENTS = [
             "batch_size": 256,
             "num_workers": 8,
             "lr": 0.01,
+            "epochs": 5,
         },
     },
     {
@@ -158,9 +160,10 @@ EXPERIMENTS = [
             "poison_type": "green_1",
             "poison_rate": 0.01,
             "target_label": 5,
-            "batch_size": 256,
+            "batch_size": 128,
             "num_workers": 8,
             "lr": 0.01,
+            "epochs": 5,
         },
     },
 
@@ -168,33 +171,35 @@ EXPERIMENTS = [
     # Spectral - YaleFaces
     # ----------------------------
     {
-        "name": "spectral__yf__beard__pr0.01__t7",
+        "name": "spectral__yf__beard__pr0.02__t7",
         "defense": "spectral",
         "dataset": "yf",
         "poison_type": "beard",
         "args": {
             "dataset": "yf",
             "poison_type": "beard",
-            "poison_rate": 0.01,
+            "poison_rate": 0.02,
             "target_label": 7,
-            "batch_size": 256,
+            "batch_size": 128,
             "num_workers": 8,
-            "lr": 0.01,
+            "lr": 0.005,
+            "epochs": 10,
         },
     },
     {
-        "name": "spectral__yf__glasses__pr0.01__t8",
+        "name": "spectral__yf__glasses__pr0.02__t8",
         "defense": "spectral",
         "dataset": "yf",
         "poison_type": "glasses",
         "args": {
             "dataset": "yf",
             "poison_type": "glasses",
-            "poison_rate": 0.01,
+            "poison_rate": 0.02,
             "target_label": 8,
-            "batch_size": 256,
+            "batch_size": 128,
             "num_workers": 8,
             "lr": 0.01,
+            "epochs": 10,
         },
     },
 ]

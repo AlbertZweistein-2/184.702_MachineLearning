@@ -46,7 +46,6 @@ def run_one(script_path: Path, exp: dict, results_dir: Path):
 
     arg_tokens = dict_to_tokens(exp["args"])
 
-    # safety: remove any accidental output_csv
     cleaned = []
     skip_next = False
     for tok in arg_tokens:
@@ -94,7 +93,7 @@ def main():
                         help="Run only one poison_type (e.g., black_1, green_0_5, green_1, beard, glasses)")
     args = parser.parse_args()
 
-    repo_root = Path(__file__).resolve().parent.parent  # Ex3/ (parent of src/)
+    repo_root = Path(__file__).resolve().parent.parent 
 
     src_dir = repo_root / cfg.SRC_DIR
     results_dir = repo_root / cfg.RESULTS_DIR
@@ -103,7 +102,6 @@ def main():
     ae_script = src_dir / "autoencoder_defense.py"
     sp_script = src_dir / "spectral_defense.py"
 
-    # filter experiments
     selected = [
         exp for exp in cfg.EXPERIMENTS
         if matches_filters(exp, args.defense, args.dataset, args.poison)

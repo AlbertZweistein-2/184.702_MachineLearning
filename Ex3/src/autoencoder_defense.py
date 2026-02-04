@@ -1,23 +1,8 @@
 #!/usr/bin/env python3
-"""
+
 #################
 ## AE Defense  ##
 #################
-
-Pipeline (single run, like spectral):
-1) Train BadNet on POISONED train set
-2) Train AE on CLEAN-ONLY train set using BackdoorBox AutoEncoderDefense
-3) Evaluate:
-   - Baseline Clean/ASR
-   - 3 variants of the SAME defense by alpha-mixing:
-       x_mix = (1 - alpha) * x + alpha * AE(x)
-
-Outputs:
-- prints baseline + defended metrics
-- OVERWRITES (replaces) the CSV each run
-
-No checkpoint loading. No complex options.
-"""
 
 import os
 import sys
@@ -40,7 +25,6 @@ from GTSRB import GTSRB_Wrapper
 from YaleFaces import YaleFaces_Wrapper
 
 
-# BackdoorBox import (robust)
 sys.path.append(os.getcwd())
 try:
     from BackdoorBox.core.defenses.AutoEncoderDefense import AutoEncoderDefense
@@ -72,15 +56,13 @@ def get_transform(dataset, for_ae: bool = False):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
-    else:  # YaleFaces
-        # classifier transform (unchanged)
+    else: 
         if not for_ae:
             return transforms.Compose([
                 transforms.Resize((128, 128)),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5)),
             ])
-        # AE transform: add blur BEFORE ToTensor/Normalize
         return transforms.Compose([
             transforms.Resize((128, 128)),
             transforms.GaussianBlur(kernel_size=5, sigma=(0.3, 1.2)),
@@ -91,7 +73,6 @@ def get_transform(dataset, for_ae: bool = False):
 
 
 def get_badnet(num_classes: int = 43) -> nn.Module:
-    # Match Spectral baseline (default ResNet18 stem)
     return resnet18(num_classes=num_classes)
 
 
@@ -99,13 +80,11 @@ class AE_BCE(nn.Module):
     """AutoEncoder compatible with BackdoorBox's BCELoss training."""
     def __init__(self):
         super(AE_BCE, self).__init__()
-        # Encoder: 128x128 -> 26x26
         self.encoder = nn.Sequential(
             nn.Conv2d(3, 16, 3, stride=2, padding=1),  nn.ReLU(),
             nn.Conv2d(16, 32, 3, stride=2, padding=1), nn.ReLU(),
             nn.Conv2d(32, 64, 7), nn.ReLU(),
         )
-        # Decoder: 26x26 -> 128x128
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(64, 32, 7), nn.ReLU(),
             nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1),nn.ReLU(),
@@ -151,7 +130,7 @@ def eval_acc(model: nn.Module, loader: DataLoader, device: torch.device) -> floa
 def train_badnet(model, train_loader, device, epochs, lr):
     model = model.to(device)
     crit = nn.CrossEntropyLoss()
-    opt = optim.SGD(model.parameters(), lr=lr, momentum=0.9)  # match spectral (no wd)
+    opt = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     
     print("\n=== Training BadNet (poisoned train) ===")
     for epoch in range(1, epochs + 1):
@@ -214,28 +193,24 @@ def write_csv_overwrite(output_csv: str, rows: List[Dict]):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GTSRB AE Defense")
+    parser = argparse.ArgumentParser(description="AE Defense")
 
-    # like spectral
     parser.add_argument("--dataset", type=str, default="gtsrb", choices=['gtsrb', 'yf'], help=["Dataset: 'gtsrb', 'yf'"])
     parser.add_argument("--data_root", type=str, default="data")
     parser.add_argument("--poison_type", type=str, default="black_1", choices=["black_1", "green_0_5", "green_1", "beard", "glasses"])
     parser.add_argument("--poison_rate", type=float, default=0.01)
     parser.add_argument("--target_label", type=int, default=5)
 
-    # baseline training knobs
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--num_workers", type=int, default=4)
 
-    # AE training knobs
     parser.add_argument("--ae_epochs", type=int, default=20)
     parser.add_argument("--ae_lr", type=float, default=1e-3)
     parser.add_argument("--ae_batch", type=int, default=64)
 
-    # exactly 3 “versions” via alpha
     parser.add_argument("--alphas", type=float, nargs=3, default=[0.65, 0.80, 1.00])
 
     parser.add_argument("--output_csv", type=str, default="ae_defense_results.csv")
@@ -248,7 +223,7 @@ def main():
     device = get_device()
 
     print("\n" + "#" * 20)
-    print("## GTSRB AE Defense ##")
+    print("## AE Defense ##")
     print("#" * 20 + "\n")
     print(f"> Device: {device}")
     if device.type == "cuda":
@@ -265,7 +240,6 @@ def main():
             raise Exception('Invalid poison type: ' + args.poison_type)
         
         print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate}), target={args.target_label})...")
-        # AE is trained on CLEAN ONLY
         train_clean = GTSRB_Wrapper(
             root_dir=args.data_root, mode='train', 
             poison_type=args.poison_type, poison_rate=0.0, 
@@ -291,7 +265,6 @@ def main():
             raise Exception('Invalid poison type: ' + args.poison_type)
 
         print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate}), target={args.target_label})...")
-        # AE is trained on CLEAN ONLY
         train_clean = YaleFaces_Wrapper(
             root_dir=args.data_root, mode='train', 
             poison_type=args.poison_type, poison_rate=0.0, 
@@ -348,14 +321,14 @@ def main():
         "epochs": args.ae_epochs,
         "betas": (0.9, 0.999),
         "eps": 1e-8,
-        "weight_decay": 0, # TODO 1e-5
+        "weight_decay": 0, 
         "amsgrad": False,
         "log_iteration_interval": 200,
-        "test_epoch_interval": 5, # TODO 10
-        "save_epoch_interval": 999999,  # don't spam checkpoints TODO 10
+        "test_epoch_interval": 5, 
+        "save_epoch_interval": 999999,  
         "save_dir": "ae_logs",
         "experiment_name": "gtsrb_ae_simple_retrain",
-        "schedule": [10, 15],  # mild LR drops (for AE only)
+        "schedule": [10, 15], 
         "gamma": 0.1,
     }
 

@@ -1,5 +1,0 @@
-timestamp,poison_type,poison_rate,target_label,defense,alpha,clean_acc,asr
-2026-02-04_19:47:40,glasses,0.05,8,Baseline,nan,97.0,67.65957446808511
-2026-02-04_19:47:40,glasses,0.05,8,AE_Mix,0.5,87.66666666666667,59.787234042553195
-2026-02-04_19:47:40,glasses,0.05,8,AE_Mix,0.6,82.0,55.95744680851064
-2026-02-04_19:47:40,glasses,0.05,8,AE_Mix,0.7,78.0,52.97872340425532

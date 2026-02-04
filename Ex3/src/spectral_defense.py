@@ -20,13 +20,14 @@ from tqdm import tqdm
 
 from GTSRB import GTSRB_Wrapper
 from YaleFaces import YaleFaces_Wrapper
+from torchvision.models import resnet18, ResNet18_Weights
+
 
 sys.path.append(os.getcwd())
 
 try:
     from BackdoorBox.core.defenses.Spectral import Spectral
 except ImportError:
-    # If first import fails, try adding parent directory to path and import again
     sys.path.append(os.path.join(os.getcwd(), '..'))
     try:
         from BackdoorBox.core.defenses.Spectral import Spectral
@@ -46,14 +47,12 @@ def eval_net(model, loader_clean, loader_poison, device, name="Model"):
     poison_total = 0
     
     with torch.no_grad():
-        # calculate clean accuracy
         for x, y, _ in tqdm(loader_clean, desc="Evaluation Clean Accuracy", leave=False):
             x, y = x.to(device), y.to(device)
             _, pred = torch.max(model(x), 1)
             clean_correct += (pred == y).sum().item()
             clean_total += y.size(0)
         
-        # calculation of attack success rate (ASR)
         for x, y, _ in tqdm(loader_poison, desc="Evaluating Poisoned", leave=False):
             x, y = x.to(device), y.to(device)
             _, pred = torch.max(model(x), 1)
@@ -122,7 +121,6 @@ def main():
     print(f"## Spectral Defense: {args.dataset} ##")
     print("#"*30 + "\n")
 
-    # configuration
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"> Device: {DEVICE}")
     if torch.cuda.is_available():
@@ -141,10 +139,7 @@ def main():
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         
-    if args.dataset == 'yf':
-        args.lr = 0.001  # lower learning rate for Yale Faces
 
-    # load data
     if args.dataset == 'gtsrb':
         if args.poison_type not in ['black_1', 'green_0_5', 'green_1']:
             raise Exception('Invalid poison type: ' + args.poison_type)
@@ -152,7 +147,7 @@ def main():
         print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate})...")
         train_set = GTSRB_Wrapper(root_dir=args.data_root, mode='train', poison_type=args.poison_type, poison_rate=args.poison_rate, transform=transform, target_label=args.target_label)
         test_clean = GTSRB_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=0.0, transform=transform, target_label=args.target_label)
-        # Test set Poison: poison_rate=1.0 for ASR
+        
         test_poison = GTSRB_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=1.0, transform=transform, target_label=args.target_label)
     else:
         if args.poison_type not in ['beard', 'glasses']:
@@ -161,7 +156,7 @@ def main():
         print(f"> Loading data (Poison Type: {args.poison_type}, Rate: {args.poison_rate})...")
         train_set = YaleFaces_Wrapper(root_dir=args.data_root, mode='train', poison_type=args.poison_type, poison_rate=args.poison_rate, transform=transform, target_label=args.target_label)
         test_clean = YaleFaces_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=0.0, transform=transform, target_label=args.target_label)
-        # Test set Poison: poison_rate=1.0 for ASR
+        
         test_poison = YaleFaces_Wrapper(root_dir=args.data_root, mode='test', poison_type=args.poison_type, poison_rate=1.0, transform=transform, target_label=args.target_label)
     
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
@@ -176,12 +171,14 @@ def main():
     
     print(f"  Poisoned samples in train_set: {len(poisoned_location)} / {len(train_set)}")
 
-    # train backdoored model
     print("\n> Training Baseline Backdoored Model...")
     if args.dataset == 'gtsrb':
         badnet = resnet18(num_classes=43).to(DEVICE)
     else:
-        badnet = resnet18(num_classes=15).to(DEVICE)
+        badnet = resnet18(weights=ResNet18_Weights.DEFAULT)
+        badnet.fc = nn.Linear(badnet.fc.in_features, 15)
+        badnet = badnet.to(DEVICE)
+
     crit = nn.CrossEntropyLoss()
     
     # training
@@ -215,7 +212,8 @@ def main():
         "num_workers": args.num_workers
     }
     
-    percentiles = [80, 82, 85]
+    percentiles = [80, 82, 85] if args.dataset == 'gtsrb' else [70, 80, 85]
+    
 
     for p in percentiles:
         print(f"\n> Running Spectral Defense (Percentile={p})...")

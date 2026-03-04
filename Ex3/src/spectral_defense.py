@@ -255,6 +255,7 @@ def main():
         if args.dataset == 'gtsrb':
             defended = resnet18(num_classes=43).to(DEVICE)
         else:
+            #Fail: should have used the pretrained ResNet18 for YaleFaces again for Fairness.
             defended = resnet18(num_classes=15).to(DEVICE)
             
         defended = train_model(defended, filtered_loader, DEVICE, crit, args.lr, args.epochs)

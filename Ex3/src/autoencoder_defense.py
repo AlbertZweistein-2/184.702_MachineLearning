@@ -77,7 +77,6 @@ def get_badnet(num_classes: int = 43) -> nn.Module:
 
 
 class AE_BCE(nn.Module):
-    """AutoEncoder compatible with BackdoorBox's BCELoss training."""
     def __init__(self):
         super(AE_BCE, self).__init__()
         self.encoder = nn.Sequential(
@@ -95,7 +94,6 @@ class AE_BCE(nn.Module):
         return self.decoder(self.encoder(x))
 
 class TightAEv3_Drop05(nn.Module):
-    """Your chosen AE architecture."""
     def __init__(self, p: float = 0.05):
         super().__init__()
         self.enc = nn.Sequential(
